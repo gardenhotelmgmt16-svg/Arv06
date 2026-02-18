@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f0f5f4; --fg: #134e4a; --accent: #0d9488; --accent-dark: #0f766e; --card: #ffffff; --border: #d1e0df; --sidebar-bg: #0f3d3a; --success: #10b981; --danger: #ef4444;
+        }
+        * { font-family: 'DM Sans', sans-serif; }
+        h1, h2, h3, h4, h5, h6, .font-heading { font-family: 'Space Grotesk', sans-serif; }
+        body { background: var(--bg); color: var(--fg); }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+        .sidebar { background: linear-gradient(180deg, var(--sidebar-bg) 0%, #0a2a28 100%); transition: transform 0.3s ease; }
+        .sidebar-link { transition: all 0.2s ease; border-left: 3px solid transparent; }
+        .sidebar-link:hover, .sidebar-link.active { background: rgba(13, 148, 136, 0.2); border-left-color: var(--accent); }
+
+        .card { background: var(--card); border-radius: 12px; box-shadow: 0 1px 3px rgba(15, 64, 61, 0.08); border: 1px solid var(--border); }
+        .form-input { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; transition: all 0.2s ease; background: var(--card); width: 100%; }
+        .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15); }
+        .btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; transition: all 0.2s ease; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: white; border: none; }
+        .btn-primary:hover { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3); }
+        .btn-secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+        .badge-default { background: #e5e7eb; color: #374151; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-danger { background: #fee2e2; color: #991b1b; font-weight: 700; }
+
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .data-table th { background: linear-gradient(180deg, #f1f9f8 0%, #e8f4f3 100%); padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid var(--accent); white-space: nowrap; }
+        .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeInUp { animation: fadeInUp 0.5s ease forwards; }
+
+        /* Room Card Styles - Updated */
+        .room-card { position: relative; overflow: hidden; cursor: pointer; transition: transform 0.1s; border-width: 2px; }
+        .room-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        /* Strip color indicator */
+        .room-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; } /* Changed to top strip */
+        
+        /* Status Backgrounds & Borders */
+        .room-card.available { background: #f0fdf4; border-color: #86efac; }
+        .room-card.available::before { background: #22c55e; }
+        
+        .room-card.occupied { background: #fef2f2; border-color: #fca5a5; }
+        .room-card.occupied::before { background: #ef4444; }
+        
+        .room-card.reserved { background: #fffbeb; border-color: #fcd34d; }
+        .room-card.reserved::before { background: #f59e0b; }
+        
+        /* NEW: Self Use Status */
+        .room-card.self-use { background: #eff6ff; border-color: #93c5fd; }
+        .room-card.self-use::before { background: #3b82f6; }
+
+        /* Manual Override Marker */
+        .room-card.manual::after { content: 'M'; position: absolute; top: 4px; right: 4px; font-size: 8px; font-weight: bold; color: #fff; background: #6b7280; border-radius: 50%; width: 12px; height: 12px; display: flex; align-items: center; justify-content: center; }
+
+        .modal-overlay { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
+        
+        @media (max-width: 1024px) {
+            .sidebar { position: fixed; left: -260px; z-index: 50; height: 100vh; }
+            .sidebar.open { left: 0; }
+            .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+            .sidebar-overlay.open { display: block; }
+        }
+
+        .recap-card { background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%); border-left: 4px solid var(--accent); }
+        .ota-card { transition: transform 0.2s ease; }
+        .ota-traveloka { border-left-color: #2689D9; } .ota-agoda { border-left-color: #D93A3A; } .ota-tiket { border-left-color: #FF5722; } .ota-mgholiday { border-left-color: #9C27B0; } .ota-kliknbook { border-left-color: #4CAF50; }
+        .ota-tiktok { border-left-color: #010101; background: #f9fafb; }
+
+        .inline-input { background: transparent; border: 1px solid transparent; padding: 4px 8px; border-radius: 4px; width: 100%; min-width: 120px; transition: all 0.2s; }
+        .inline-input:hover { border-color: #d1e0df; background: #fff; }
+        .inline-input:focus { background: #fff; border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.2); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar fixed left-0 top-0 h-screen w-64 flex flex-col z-50 no-print">
+        <div class="p-5 border-b border-teal-800/30 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold">HMS</div>
+            <div><h1 class="font-heading font-bold text-white text-lg">HMS</h1><p class="text-xs text-teal-300/70">Hotel Management</p></div>
+        </div>
+        <nav class="flex-1 py-4 overflow-y-auto">
+            <div class="px-4 mb-2 text-[10px] uppercase tracking-wider text-teal-400/60 font-semibold">Menu</div>
+            <a href="#" class="sidebar-link active flex items-center gap-3 px-5 py-3 text-teal-100" data-view="dashboard" onclick="switchView('dashboard')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"/></svg><span class="text-sm font-medium">Dashboard</span></a>
+            <a href="#" class="sidebar-link flex items-center gap-3 px-5 py-3 text-teal-100/70" data-view="booking" onclick="switchView('booking')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span class="text-sm font-medium">Booking</span></a>
+            <a href="#" class="sidebar-link flex items-center gap-3 px-5 py-3 text-teal-100/70" data-view="rooms" onclick="switchView('rooms')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg><span class="text-sm font-medium">Room Status</span></a>
+            <div class="px-4 mt-6 mb-2 text-[10px] uppercase tracking-wider text-teal-400/60 font-semibold">Laporan</div>
+            <a href="#" class="sidebar-link flex items-center gap-3 px-5 py-3 text-teal-100/70" data-view="recap" onclick="switchView('recap')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><span class="text-sm font-medium">Rekap Booking</span></a>
+            <a href="#" class="sidebar-link flex items-center gap-3 px-5 py-3 text-teal-100/70" data-view="ota-report" onclick="switchView('ota-report')"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg><span class="text-sm font-medium">Laporan OTA Bulanan</span></a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="lg:ml-64 min-h-screen">
+        <header class="bg-white border-b border-teal-100 sticky top-0 z-30 no-print">
+            <div class="flex items-center justify-between px-4 lg:px-6 py-3">
+                <div class="flex items-center gap-4">
+                    <button id="menuBtn" class="lg:hidden p-2 rounded-lg hover:bg-teal-50 text-teal-700" onclick="toggleSidebar()"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+                    <h2 id="pageTitle" class="font-heading font-bold text-teal-900 text-lg">Dashboard</h2>
+                </div>
+                <div class="hidden sm:flex items-center gap-2 px-3 py-2 bg-teal-50 rounded-lg text-sm font-medium text-teal-700" id="currentDate"></div>
+            </div>
+        </header>
+
+        <div class="p-4 lg:p-6">
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="view-content">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="card p-4 animate-fadeInUp"><p class="text-xs text-teal-600/70 font-medium uppercase">Check-in</p><p class="text-2xl font-heading font-bold text-teal-900 mt-1" id="statCheckin">0</p></div>
+                    <div class="card p-4 animate-fadeInUp" style="animation-delay: 50ms;"><p class="text-xs text-teal-600/70 font-medium uppercase">Check-out</p><p class="text-2xl font-heading font-bold text-teal-900 mt-1" id="statCheckout">0</p></div>
+                    <div class="card p-4 animate-fadeInUp" style="animation-delay: 100ms;"><p class="text-xs text-teal-600/70 font-medium uppercase">In House</p><p class="text-2xl font-heading font-bold text-teal-900 mt-1" id="statInHouse">0</p></div>
+                    <div class="card p-4 animate-fadeInUp" style="animation-delay: 150ms;"><p class="text-xs text-teal-600/70 font-medium uppercase">Revenue</p><p class="text-2xl font-heading font-bold text-teal-900 mt-1" id="statRevenue">Rp 0</p></div>
+                </div>
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div class="card animate-fadeInUp"><div class="p-4 border-b border-teal-100"><h3 class="font-heading font-semibold text-teal-900">Arrivals Today</h3></div><div class="overflow-x-auto max-h-80"><table class="data-table"><thead><tr><th>Tamu</th><th>Kamar</th><th>Source</th></tr></thead><tbody id="arrivalsTable"></tbody></table></div></div>
+                    <div class="card animate-fadeInUp" style="animation-delay: 50ms;"><div class="p-4 border-b border-teal-100"><h3 class="font-heading font-semibold text-teal-900">Departures Today</h3></div><div class="overflow-x-auto max-h-80"><table class="data-table"><thead><tr><th>Tamu</th><th>Kamar</th><th>Total</th></tr></thead><tbody id="departuresTable"></tbody></table></div></div>
+                </div>
+            </section>
+
+            <!-- Booking View -->
+            <section id="view-booking" class="view-content hidden">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                    <h3 class="font-heading font-semibold text-teal-900 text-lg hidden md:block">Daftar Booking</h3>
+                    <div class="relative flex-1 w-full md:max-w-xs order-first md:order-none">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-teal-400 pointer-events-none">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </span>
+                        <input type="text" id="bookingSearchGuest" class="form-input text-sm pl-9 w-full" placeholder="Cari nama tamu..." oninput="renderBookings()">
+                    </div>
+                    <button onclick="openBookingModal()" class="btn btn-primary w-full md:w-auto">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Tambah Booking</span>
+                    </button>
+                </div>
+                
+                <div class="card">
+                    <div class="overflow-x-auto">
+                        <table class="data-table">
+                            <thead><tr><th>No</th><th>Tamu</th><th>Kamar</th><th>CI</th><th>CO</th><th>Harga</th><th>Total</th><th>Status</th><th>Method</th><th>Aksi</th></tr></thead>
+                            <tbody id="bookingTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Room View (UPDATED) -->
+            <section id="view-rooms" class="view-content hidden">
+                 <div class="mb-4 flex flex-wrap items-center gap-4">
+                    <!-- Legend -->
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="text-sm">Available</span></div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-sm">Occupied</span></div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500"></span><span class="text-sm">Reserved</span></div>
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span class="text-sm">Self Use</span></div>
+                    <div class="flex items-center gap-2 ml-auto text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"><span class="font-bold">M</span> = Manual Override</div>
+                </div>
+                <div class="flex flex-wrap gap-4 mb-6 items-center">
+                    <div class="flex items-center gap-2 bg-white p-2 rounded-lg border border-teal-200">
+                        <label class="text-sm font-medium text-teal-800">Lihat Tanggal:</label>
+                        <input type="date" id="roomDateFilter" class="form-input text-sm py-1 w-40" onchange="renderRooms()">
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="room-filter-btn btn btn-primary text-sm py-2" data-filter="all" onclick="filterRooms('all')">Semua</button>
+                        <button class="room-filter-btn btn btn-secondary text-sm py-2" data-filter="superior" onclick="filterRooms('superior')">Superior</button>
+                        <button class="room-filter-btn btn btn-secondary text-sm py-2" data-filter="deluxe" onclick="filterRooms('deluxe')">Deluxe</button>
+                        <button class="room-filter-btn btn btn-secondary text-sm py-2" data-filter="suite" onclick="filterRooms('suite')">Suite</button>
+                    </div>
+                </div>
+                <div id="roomGrid" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2"></div>
+            </section>
+
+            <!-- Recap View -->
+            <section id="view-recap" class="view-content hidden">
+                <div class="card">
+                    <div class="p-4 border-b border-teal-100 bg-teal-700 rounded-t-xl">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-heading font-bold text-white text-lg">Rekap Booking</h3>
+                                <div class="flex gap-2">
+                                    <input type="date" id="recapDateFrom" class="form-input text-sm py-1" onchange="renderRecapByRange()">
+                                    <input type="date" id="recapDateTo" class="form-input text-sm py-1" onchange="renderRecapByRange()">
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-teal-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    </span>
+                                    <input type="text" id="recapSearchGuest" class="form-input text-sm pl-9 w-full" placeholder="Cari nama tamu..." oninput="renderRecapByRange()">
+                                </div>
+                                <button onclick="exportRecapToExcel()" class="btn bg-white text-teal-700 hover:bg-teal-50 text-sm">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    <span class="hidden sm:inline">Excel</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="recap-card p-4 rounded-lg"><p class="text-xs">Total Booking</p><p class="text-xl font-bold" id="recapTotalBooking">0</p></div>
+                            <div class="recap-card p-4 rounded-lg"><p class="text-xs">Room Night</p><p class="text-xl font-bold" id="recapTotalNights">0</p></div>
+                            <div class="recap-card p-4 rounded-lg"><p class="text-xs">Total Pax</p><p class="text-xl font-bold" id="recapTotalPax">0</p></div>
+                            <div class="recap-card p-4 rounded-lg"><p class="text-xs">Total Revenue</p><p class="text-xl font-bold" id="recapTotalRevenue">Rp 0</p></div>
+                        </div>
+                        <div class="overflow-x-auto max-h-96">
+                            <table class="data-table">
+                                <thead><tr><th>No</th><th>Tamu</th><th>CI</th><th>CO</th><th>Kamar</th><th>Harga</th><th>Total</th><th>Status</th><th>Method</th><th>Reservasi By</th></tr></thead>
+                                <tbody id="recapTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- OTA REPORT VIEW -->
+            <section id="view-ota-report" class="view-content hidden">
+                <div class="card mb-6">
+                    <div class="p-4 border-b border-teal-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div><h3 class="font-heading font-bold text-teal-900 text-xl">Rekap Reservasi OTA Bulanan</h3><p class="text-sm text-teal-600">Laporan pendapatan dari Online Travel Agent</p></div>
+                        <div class="flex items-center gap-2"><label class="text-sm font-medium">Bulan:</label><input type="month" id="otaMonthFilter" class="form-input text-sm w-40" onchange="renderOTAReport()"></div>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+                            <div class="ota-card card p-4 border-l-4 ota-traveloka bg-blue-50"><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-blue-800 uppercase">Traveloka</span><span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full" id="ota-traveloka-count">0</span></div><p class="text-xl font-heading font-bold text-blue-900" id="ota-traveloka-revenue">Rp 0</p></div>
+                            <div class="ota-card card p-4 border-l-4 ota-agoda bg-red-50"><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-red-800 uppercase">Agoda</span><span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full" id="ota-agoda-count">0</span></div><p class="text-xl font-heading font-bold text-red-900" id="ota-agoda-revenue">Rp 0</p></div>
+                            <div class="ota-card card p-4 border-l-4 ota-tiket bg-orange-50"><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-orange-800 uppercase">Tiket</span><span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full" id="ota-tiket-count">0</span></div><p class="text-xl font-heading font-bold text-orange-900" id="ota-tiket-revenue">Rp 0</p></div>
+                            <div class="ota-card card p-4 border-l-4 ota-tiktok"><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-gray-800 uppercase">TikTok</span><span class="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full" id="ota-tiktok-count">0</span></div><p class="text-xl font-heading font-bold text-gray-900" id="ota-tiktok-revenue">Rp 0</p></div>
+                            <div class="ota-card card p-4 border-l-4 ota-mgholiday bg-purple-50"><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-purple-800 uppercase">MG Holiday</span><span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full" id="ota-mgholiday-count">0</span></div><p class="text-xl font-heading font-bold text-purple-900" id="ota-mgholiday-revenue">Rp 0</p></div>
+                            <div class="ota-card card p-4 border-l-4 ota-kliknbook bg-green-50"><div class="flex items-center justify-between mb-2"><span class="text-xs font-bold text-green-800 uppercase">KliknBook</span><span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" id="ota-kliknbook-count">0</span></div><p class="text-xl font-heading font-bold text-green-900" id="ota-kliknbook-revenue">Rp 0</p></div>
+                        </div>
+                        <div class="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-6 flex items-center justify-between"><span class="font-semibold text-teal-800">Total Pendapatan OTA Bulan Ini</span><span class="text-2xl font-heading font-bold text-teal-900" id="ota-total-revenue">Rp 0</span></div>
+                        <div class="border-t border-teal-100 pt-6">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+                                <h4 class="font-heading font-semibold text-teal-900">Detail Transaksi OTA</h4>
+                                <div class="flex items-center gap-2">
+                                    <select id="filterOtaDetail" class="form-input text-sm py-1 w-40" onchange="renderOTAReport()">
+                                        <option value="all">Semua OTA</option>
+                                        <option value="Traveloka">Traveloka</option>
+                                        <option value="Agoda">Agoda</option>
+                                        <option value="Tiket">Tiket</option>
+                                        <option value="TikTok">TikTok</option>
+                                        <option value="MG Holiday">MG Holiday</option>
+                                        <option value="KliknBook">KliknBook</option>
+                                    </select>
+                                    <button onclick="exportOTAReportToExcel()" class="btn btn-success text-sm flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>Download Excel</button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto max-h-96">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>No Booking</th><th>Tamu</th><th>Check In</th><th>Check Out</th><th>OTA</th><th>Harga</th><th>Total</th><th>Keterangan Bayar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="otaTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0" onclick="closeBookingModal()"></div>
+        <div class="card relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fadeInUp">
+            <div class="p-4 border-b border-teal-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                <h3 class="font-heading font-semibold text-teal-900 text-lg" id="formTitle">Tambah Booking</h3>
+                <button onclick="closeBookingModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            <form id="bookingForm" class="p-4 space-y-3" onsubmit="return handleFormSubmit(event)">
+                <input type="hidden" id="editIndex" value="-1">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">No Booking</label><input type="text" id="noBooking" class="form-input text-sm" placeholder="Otomatis jika kosong"></div>
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Booking Date</label><input type="date" id="bookingDate" class="form-input text-sm"></div>
+                </div>
+                <div><label class="block text-xs font-medium text-teal-700 mb-1">Nama Tamu *</label><input type="text" id="guestName" class="form-input text-sm" placeholder="Nama Tamu" required></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">No Kamar *</label><select id="roomNo" class="form-input text-sm" required></select></div>
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Tipe</label><input type="text" id="roomType" class="form-input text-sm bg-teal-50" readonly></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Check In *</label><input type="date" id="checkIn" class="form-input text-sm" required></div>
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Check Out *</label><input type="date" id="checkOut" class="form-input text-sm" required></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Night</label><input type="number" id="night" class="form-input text-sm bg-teal-50" readonly value="0"></div>
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Qty *</label><input type="number" id="qty" class="form-input text-sm" value="1" required></div>
+                </div>
+                <div><label class="block text-xs font-medium text-teal-700 mb-1">No HP *</label><input type="tel" id="phone" class="form-input text-sm" placeholder="08xxx" required></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Harga *</label><input type="number" id="price" class="form-input text-sm" placeholder="Harga" required></div>
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Meal Plan</label><select id="mealPlan" class="form-input text-sm"><option value="RO">RO</option><option value="BF">BF</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Status Bayar *</label>
+                        <select id="paymentStatus" class="form-input text-sm" required>
+                            <option value="">Pilih Status</option>
+                            <option value="Belum Payment">Belum Payment</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Debit">Debit</option>
+                            <option value="TF">Transfer (TF)</option>
+                            <option value="Kredit">Kredit</option>
+                            <option value="Qris">QRIS</option>
+                            <option value="OTA">OTA</option>
+                            <option value="Compliment">Compliment</option>
+                        </select>
+                    </div>
+                    <div><label class="block text-xs font-medium text-teal-700 mb-1">Method *</label>
+                        <select id="paymentMethod" class="form-input text-sm" required>
+                            <option value="">Pilih Method</option>
+                            <option value="Walk In">Walk In</option>
+                            <option value="Phone">Phone</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Back Office">Back Office</option>
+                            <option value="Voucher">Voucher</option>
+                            <optgroup label="OTA">
+                                <option value="Traveloka">Traveloka</option>
+                                <option value="Agoda">Agoda</option>
+                                <option value="Tiket">Tiket.com</option>
+                                <option value="TikTok">TikTok</option>
+                                <option value="MG Holiday">MG Holiday</option>
+                                <option value="KliknBook">KliknBook</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div><label class="block text-xs font-medium text-teal-700 mb-1">Reservasi By</label><input type="text" id="reservationBy" class="form-input text-sm" placeholder="Nama Resepsionis"></div>
+                <div class="flex gap-3 pt-2"><button type="submit" class="btn btn-primary flex-1">Simpan</button><button type="button" class="btn btn-secondary" onclick="closeBookingModal()">Batal</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Room Status Modal (UPDATED) -->
+    <div id="roomStatusModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0" onclick="closeRoomStatusModal()"></div>
+        <div class="card relative z-10 w-full max-w-sm animate-fadeInUp">
+            <div class="p-4 border-b border-teal-100"><h3 class="font-heading font-semibold text-teal-900 text-lg">Ubah Status: <span id="modalRoomNo"></span></h3></div>
+            <div class="p-4 space-y-3">
+                <p class="text-sm text-gray-500">Pilih status manual atau kembalikan ke status otomatis.</p>
+                <input type="hidden" id="selectedRoomNo">
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="setManualStatus('available')" class="btn bg-emerald-100 hover:bg-emerald-200 text-emerald-800 justify-start"><span class="w-3 h-3 rounded-full bg-emerald-500 mr-2"></span>Available</button>
+                    <button onclick="setManualStatus('occupied')" class="btn bg-red-100 hover:bg-red-200 text-red-800 justify-start"><span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>Occupied</button>
+                    <button onclick="setManualStatus('reserved')" class="btn bg-amber-100 hover:bg-amber-200 text-amber-800 justify-start"><span class="w-3 h-3 rounded-full bg-amber-500 mr-2"></span>Reserved</button>
+                    <!-- NEW: Self Use Button -->
+                    <button onclick="setManualStatus('self-use')" class="btn bg-blue-100 hover:bg-blue-200 text-blue-800 justify-start"><span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>Self Use</button>
+                </div>
+                <div class="pt-2 border-t mt-2"><button onclick="resetManualStatus()" class="btn btn-secondary w-full text-sm">Reset ke Otomatis</button></div>
+                <button onclick="closeRoomStatusModal()" class="btn btn-secondary w-full mt-2">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div id="deleteModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0" onclick="closeDeleteModal()"></div>
+        <div class="card relative z-10 w-full max-w-md p-6 animate-fadeInUp"><h3 class="font-heading font-semibold text-teal-900 text-lg mb-2">Hapus Booking?</h3><p class="text-sm text-gray-500">Data yang dihapus tidak dapat dikembalikan.</p><div class="flex gap-3 justify-end mt-4"><button class="btn btn-secondary" onclick="closeDeleteModal()">Batal</button><button class="btn btn-danger" onclick="confirmDelete()">Hapus</button></div></div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 z-50 hidden"><div class="card px-4 py-3 flex items-center gap-3 shadow-lg"><div id="toastIcon" class="w-8 h-8 rounded-full flex items-center justify-center"></div><div><p id="toastTitle" class="font-semibold text-teal-900 text-sm"></p><p id="toastMessage" class="text-xs text-teal-600"></p></div></div></div>
+
+    <script>
+        // ==================== DATA STORE ====================
+        let bookings = [];
+        let manualRoomStatus = {}; 
+        let deleteIndex = -1;
+        const ROOMS = [];
+        const OTA_LIST = ['Traveloka', 'Agoda', 'Tiket', 'TikTok', 'MG Holiday', 'KliknBook'];
+
+        function initRooms() {
+            const PRICE_SUPERIOR = 450000; const PRICE_DELUXE = 750000; const PRICE_SUITE = 1200000;
+            const createRoom = (no, type) => {
+                let price = PRICE_SUPERIOR; if (type === 'Deluxe') price = PRICE_DELUXE; if (type === 'Suite') price = PRICE_SUITE;
+                return { no: no.toString(), type: type, floor: Math.floor(no / 100), price: price };
+            };
+            for (let i = 101; i <= 121; i++) { let type = 'Superior'; if (i === 109) type = 'Suite'; ROOMS.push(createRoom(i, type)); }
+            for (let i = 201; i <= 220; i++) { ROOMS.push(createRoom(i, 'Superior')); }
+            for (let i = 301; i <= 321; i++) { let type = 'Superior'; if (i === 306 || i === 307 || i === 308) type = 'Deluxe'; if (i === 309) type = 'Suite'; ROOMS.push(createRoom(i, type)); }
+        }
+        initRooms();
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            document.getElementById('currentDate').textContent = today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('bookingDate').value = formatDateInput(today);
+            document.getElementById('checkIn').value = formatDateInput(today);
+            document.getElementById('roomDateFilter').value = formatDateInput(today);
+            document.getElementById('otaMonthFilter').value = formatDateMonth(today);
+            const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+            document.getElementById('recapDateFrom').value = formatDateInput(today);
+            document.getElementById('recapDateTo').value = formatDateInput(nextWeek);
+
+            const savedData = localStorage.getItem('hotelBookings');
+            if (savedData) { bookings = JSON.parse(savedData); } else { generateMockBookings(); }
+
+            const savedManualStatus = localStorage.getItem('manualRoomStatus');
+            if (savedManualStatus) { manualRoomStatus = JSON.parse(savedManualStatus); }
+
+            populateRoomSelect();
+            renderAll();
+            
+            document.getElementById('roomNo').addEventListener('change', function() { 
+                const room = ROOMS.find(r => r.no === this.value); 
+                if (room) { 
+                    document.getElementById('roomType').value = room.type; 
+                    document.getElementById('price').value = room.price; 
+                } 
+            });
+            document.getElementById('checkIn').addEventListener('change', calculateNights); 
+            document.getElementById('checkOut').addEventListener('change', calculateNights);
+        });
+
+        function generateMockBookings() {
+            const names = ['Budi Santoso', 'Siti Aminah', 'Ahmad Dahlan', 'Dewi Lestari', 'Rudi Hermawan', 'Linda Sari', 'Joko Widodo', 'Megawati', 'Susilo B', 'BJ Habibie'];
+            const methods = ['Walk In', 'Phone', 'Sales', 'Traveloka', 'Agoda', 'Tiket', 'TikTok', 'MG Holiday', 'KliknBook', 'Voucher'];
+            const statuses = ['Cash', 'Debit', 'TF', 'Qris', 'OTA', 'Compliment', 'Belum Payment'];
+            const resBys = ['Admin', 'Resepsionis 1', 'Online', 'Sales Tim', '-'];
+            const today = new Date();
+            for (let i = -10; i <= 15; i++) {
+                const numBookings = Math.floor(Math.random() * 3) + 1;
+                for (let j = 0; j < numBookings; j++) {
+                    const checkInDate = new Date(today); checkInDate.setDate(today.getDate() + i);
+                    const nights = Math.floor(Math.random() * 3) + 1;
+                    const checkOutDate = new Date(checkInDate); checkOutDate.setDate(checkInDate.getDate() + nights);
+                    const room = ROOMS[Math.floor(Math.random() * ROOMS.length)];
+                    const method = methods[Math.floor(Math.random() * methods.length)];
+                    const status = statuses[Math.floor(Math.random() * statuses.length)];
+                    const resBy = resBys[Math.floor(Math.random() * resBys.length)];
+                    let mockNo = generateBookingNo();
+                    if (OTA_LIST.includes(method)) { mockNo = method.toUpperCase().substring(0,3) + '-' + Math.floor(Math.random() * 9000000 + 1000000); }
+                    bookings.push({
+                        noBooking: mockNo, bookingDate: formatDateInput(new Date(checkInDate.getTime() - Math.random() * 5 * 24 * 60 * 60 * 1000)), guestName: names[Math.floor(Math.random() * names.length)], roomNo: room.no, roomType: room.type, checkIn: formatDateInput(checkInDate), checkOut: formatDateInput(checkOutDate), night: nights, phone: '08123456789', price: room.price, mealPlan: 'RO', qty: 1, paymentStatus: status, paymentMethod: method, reservationBy: resBy, notes: '', paymentNotes: '', total: status === 'Compliment' ? 0 : room.price * nights
+                    });
+                }
+            }
+            saveBookings();
+        }
+
+        // ==================== NAVIGATION ====================
+        function switchView(viewName) {
+            document.querySelectorAll('.sidebar-link').forEach(link => { link.classList.remove('active'); if (link.dataset.view === viewName) link.classList.add('active'); });
+            document.querySelectorAll('.view-content').forEach(view => view.classList.add('hidden'));
+            document.getElementById('view-' + viewName).classList.remove('hidden');
+            document.getElementById('pageTitle').textContent = viewName.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (viewName === 'ota-report') renderOTAReport();
+            if (window.innerWidth < 1024) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+        }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
+
+        // ==================== MODAL HANDLING ====================
+        function openBookingModal() { document.getElementById('bookingModal').classList.remove('hidden'); document.getElementById('bookingModal').classList.add('flex'); document.getElementById('formTitle').textContent = "Tambah Booking"; resetForm(); }
+        function closeBookingModal() { document.getElementById('bookingModal').classList.add('hidden'); document.getElementById('bookingModal').classList.remove('flex'); document.getElementById('editIndex').value = -1; }
+
+        // ==================== RENDER FUNCTIONS ====================
+        function renderAll() { renderDashboard(); renderBookings(); renderRooms(); renderRecapByRange(); }
+
+        function getStatusBadge(status) {
+            let className = 'badge-default';
+            if (status === 'Belum Payment') { className = 'badge-danger'; } 
+            else if (['Cash', 'Debit', 'TF', 'Qris', 'OTA'].includes(status)) { className = 'badge-success'; }
+            return `<span class="badge ${className}">${status}</span>`;
+        }
+
+        function renderOTAReport() {
+            const monthInput = document.getElementById('otaMonthFilter').value;
+            if (!monthInput) return;
+            const [year, month] = monthInput.split('-').map(Number);
+            const otaBookingsForMonth = bookings.filter(b => {
+                const date = new Date(b.checkIn);
+                return OTA_LIST.includes(b.paymentMethod) && date.getFullYear() === year && date.getMonth() + 1 === month;
+            });
+            const summary = {}; OTA_LIST.forEach(ota => summary[ota] = { count: 0, revenue: 0 });
+            let totalRevenue = 0;
+            otaBookingsForMonth.forEach(b => { if (summary[b.paymentMethod]) { summary[b.paymentMethod].count++; summary[b.paymentMethod].revenue += b.total; totalRevenue += b.total; } });
+            for (const key in summary) {
+                const safeKey = key.replace(' ', '').replace('.', '').toLowerCase();
+                const countEl = document.getElementById(`ota-${safeKey}-count`);
+                const revEl = document.getElementById(`ota-${safeKey}-revenue`);
+                if (countEl) countEl.textContent = `${summary[key].count} Booking`;
+                if (revEl) revEl.textContent = formatCurrency(summary[key].revenue);
+            }
+            document.getElementById('ota-total-revenue').textContent = formatCurrency(totalRevenue);
+            const selectedOta = document.getElementById('filterOtaDetail').value;
+            let tableData = otaBookingsForMonth;
+            if (selectedOta !== 'all') { tableData = otaBookingsForMonth.filter(b => b.paymentMethod === selectedOta); }
+            const tbody = document.getElementById('otaTableBody');
+            
+            const formatDateID = (dateStr) => {
+                const d = new Date(dateStr);
+                return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            };
+
+            tbody.innerHTML = tableData.length ? tableData.map(b => {
+                const idx = bookings.findIndex(item => item.noBooking === b.noBooking && item.checkIn === b.checkIn); 
+                return `<tr>
+                    <td><span class="font-mono text-sm">${b.noBooking}</span></td>
+                    <td>${b.guestName}</td>
+                    <td>${formatDateID(b.checkIn)}</td>
+                    <td>${formatDateID(b.checkOut)}</td>
+                    <td><span class="badge bg-teal-100 text-teal-700">${b.paymentMethod}</span></td>
+                    <td>${formatCurrency(b.price)}</td>
+                    <td class="font-semibold">${formatCurrency(b.total)}</td>
+                    <td><input type="text" value="${b.paymentNotes || ''}" class="inline-input text-sm" placeholder="Tambah catatan..." onchange="updatePaymentNote(${idx}, this.value)"></td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="8" class="text-center py-6 text-teal-500">Tidak ada transaksi</td></tr>';
+        }
+
+        function updatePaymentNote(index, value) {
+            if (index >= 0 && index < bookings.length) {
+                bookings[index].paymentNotes = value;
+                saveBookings();
+                showToast('success', 'Tersimpan', 'Keterangan bayar diperbarui');
+            }
+        }
+
+        function exportOTAReportToExcel() {
+            const monthInput = document.getElementById('otaMonthFilter').value; const selectedOta = document.getElementById('filterOtaDetail').value; if (!monthInput) { showToast('error', 'Error', 'Pilih bulan terlebih dahulu'); return; }
+            const [year, month] = monthInput.split('-').map(Number); let dataToExport = bookings.filter(b => { const date = new Date(b.checkIn); return OTA_LIST.includes(b.paymentMethod) && date.getFullYear() === year && date.getMonth() + 1 === month; });
+            if (selectedOta !== 'all') { dataToExport = dataToExport.filter(b => b.paymentMethod === selectedOta); } if (dataToExport.length === 0) { showToast('error', 'Error', 'Tidak ada data untuk diexport'); return; }
+            
+            const formatDateExcel = (dateStr) => {
+                 const d = new Date(dateStr);
+                 return d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            };
+
+            const excelData = dataToExport.map((b, index) => ({
+                "No": index + 1, "No Booking": b.noBooking, "Nama Tamu": b.guestName, "No Kamar": b.roomNo, "Tipe Kamar": b.roomType,
+                "Check In": formatDateExcel(b.checkIn), "Check Out": formatDateExcel(b.checkOut), "Malam": b.night, "OTA": b.paymentMethod, "Harga (Rp)": b.price, "Total (Rp)": b.total, "Keterangan Bayar": b.paymentNotes || ''
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(excelData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan OTA");
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]; const otaName = selectedOta === 'all' ? 'Semua_OTA' : selectedOta.replace(' ', '_'); const filename = `Laporan_${otaName}_${monthNames[month-1]}_${year}.xlsx`;
+            XLSX.writeFile(workbook, filename); showToast('success', 'Sukses', 'File Excel berhasil diunduh');
+        }
+
+        function exportRecapToExcel() {
+            const dateFrom = document.getElementById('recapDateFrom').value; 
+            const dateTo = document.getElementById('recapDateTo').value; 
+            const searchName = document.getElementById('recapSearchGuest').value.toLowerCase();
+
+            let filteredBookings = bookings.filter(b => { 
+                const matchFrom = !dateFrom || b.checkOut > dateFrom; 
+                const matchTo = !dateTo || b.checkIn <= dateTo; 
+                return matchFrom && matchTo; 
+            });
+            if (searchName) { filteredBookings = filteredBookings.filter(b => b.guestName.toLowerCase().includes(searchName)); }
+
+            if (filteredBookings.length === 0) { showToast('error', 'Error', 'Tidak ada data untuk diexport'); return; }
+
+            const excelData = filteredBookings.map((b, index) => ({
+                "No": index + 1, 
+                "No Booking": b.noBooking, 
+                "Nama Tamu": b.guestName, 
+                "Check In": b.checkIn, 
+                "Check Out": b.checkOut, 
+                "No Kamar": b.roomNo, 
+                "Tipe": b.roomType,
+                "Harga (Rp)": b.price, 
+                "Total (Rp)": b.total, 
+                "Status Bayar": b.paymentStatus, 
+                "Method": b.paymentMethod, 
+                "Reservasi By": b.reservationBy || '-'
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData); 
+            const workbook = XLSX.utils.book_new(); 
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Booking");
+            
+            const filename = `Rekap_Booking_${dateFrom}_sd_${dateTo}.xlsx`;
+            XLSX.writeFile(workbook, filename); 
+            showToast('success', 'Sukses', 'File Excel berhasil diunduh');
+        }
+
+        function renderDashboard() { const today = formatDateInput(new Date()); const arrivalsToday = bookings.filter(b => b.checkIn === today); const departuresToday = bookings.filter(b => b.checkOut === today); document.getElementById('statCheckin').textContent = arrivalsToday.length; document.getElementById('statCheckout').textContent = departuresToday.length; document.getElementById('statInHouse').textContent = bookings.filter(b => b.checkIn <= today && b.checkOut > today).length; document.getElementById('statRevenue').textContent = formatCurrencyShort(arrivalsToday.reduce((s, b) => s + b.total, 0)); document.getElementById('arrivalsTable').innerHTML = arrivalsToday.length ? arrivalsToday.map(b => `<tr><td>${b.guestName}</td><td>${b.roomNo}</td><td>${b.paymentMethod}</td></tr>`).join('') : '<tr><td colspan="3" class="text-center py-4 text-teal-500">Tidak ada</td></tr>'; document.getElementById('departuresTable').innerHTML = departuresToday.length ? departuresToday.map(b => `<tr><td>${b.guestName}</td><td>${b.roomNo}</td><td>${formatCurrency(b.total)}</td></tr>`).join('') : '<tr><td colspan="3" class="text-center py-4 text-teal-500">Tidak ada</td></tr>'; }
+        
+        function renderRecapByRange() { 
+            const dateFrom = document.getElementById('recapDateFrom').value; const dateTo = document.getElementById('recapDateTo').value; const searchName = document.getElementById('recapSearchGuest').value.toLowerCase();
+            let filteredBookings = bookings.filter(b => { const matchFrom = !dateFrom || b.checkOut > dateFrom; const matchTo = !dateTo || b.checkIn <= dateTo; return matchFrom && matchTo; });
+            if (searchName) { filteredBookings = filteredBookings.filter(b => b.guestName.toLowerCase().includes(searchName)); }
+            document.getElementById('recapTotalBooking').textContent = filteredBookings.length; document.getElementById('recapTotalNights').textContent = filteredBookings.reduce((s, b) => s + b.night, 0); document.getElementById('recapTotalPax').textContent = filteredBookings.reduce((s, b) => s + b.qty, 0); document.getElementById('recapTotalRevenue').textContent = formatCurrency(filteredBookings.reduce((s, b) => s + b.total, 0)); 
+            document.getElementById('recapTableBody').innerHTML = filteredBookings.length ? filteredBookings.map(b => `<tr><td>${b.noBooking}</td><td>${b.guestName}</td><td>${formatDateShort(b.checkIn)}</td><td>${formatDateShort(b.checkOut)}</td><td>${b.roomNo}</td><td>${formatCurrency(b.price)}</td><td>${formatCurrency(b.total)}</td><td>${getStatusBadge(b.paymentStatus)}</td><td>${b.paymentMethod}</td><td>${b.reservationBy || '-'}</td></tr>`).join('') : '<tr><td colspan="10" class="text-center py-4">Tidak ada</td></tr>';
+        }
+        
+        function renderBookings() { 
+            const searchName = document.getElementById('bookingSearchGuest').value.toLowerCase();
+            let filteredBookings = bookings;
+            if (searchName) { filteredBookings = bookings.filter(b => b.guestName.toLowerCase().includes(searchName)); }
+            const tbody = document.getElementById('bookingTableBody'); 
+            tbody.innerHTML = filteredBookings.sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)).map((b, idx) => { 
+                const i = bookings.indexOf(b); 
+                return `<tr>
+                    <td><span class="font-mono text-sm">${b.noBooking}</span></td><td>${b.guestName}</td><td>${b.roomNo}</td><td>${formatDateShort(b.checkIn)}</td><td>${formatDateShort(b.checkOut)}</td><td>${formatCurrency(b.price)}</td><td>${formatCurrency(b.total)}</td><td>${getStatusBadge(b.paymentStatus)}</td><td>${b.paymentMethod}</td>
+                    <td><div class="flex gap-1"><button onclick="editBooking(${i})" class="p-1 hover:bg-teal-100 rounded text-teal-600" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button><button onclick="openDeleteModal(${i})" class="p-1 hover:bg-red-100 rounded text-red-500" title="Hapus"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></div></td>
+                </tr>`; 
+            }).join(''); 
+            if (filteredBookings.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-400">Tidak ada data ditemukan</td></tr>'; }
+        }
+        
+        // UPDATED: Room Rendering Logic
+        function renderRooms(filter = 'all') { 
+            const grid = document.getElementById('roomGrid'); grid.innerHTML = ''; 
+            let selectedDate = document.getElementById('roomDateFilter').value;
+            const today = formatDateInput(new Date());
+            if (!selectedDate) { selectedDate = today; document.getElementById('roomDateFilter').value = today; }
+            const filteredByType = filter === 'all' ? ROOMS : ROOMS.filter(r => r.type.toLowerCase() === filter); 
+            [1, 2, 3].forEach(floor => { 
+                const floorRooms = filteredByType.filter(r => r.floor === floor); 
+                if (floorRooms.length === 0) return; 
+                const label = document.createElement('div'); label.className = 'col-span-full mt-2 mb-1'; label.innerHTML = `<span class="text-xs font-bold text-teal-600">Lantai ${floor}</span>`; grid.appendChild(label); 
+                floorRooms.forEach((room) => { 
+                    let status = 'available';
+                    let isManual = false;
+
+                    // Check Manual Override first
+                    if (manualRoomStatus[room.no]) { 
+                        status = manualRoomStatus[room.no]; 
+                        isManual = true; 
+                    } else {
+                        // UPDATED: Between Logic
+                        // Occupied if: CheckIn <= Selected < CheckOut
+                        // If CheckOut == Selected, room is FREE.
+                        const occupied = bookings.find(b => b.roomNo === room.no && b.checkIn <= selectedDate && b.checkOut > selectedDate); 
+                        if (occupied) { 
+                            status = 'occupied'; 
+                        } else if (selectedDate === today) { 
+                            // Reserved logic: Only show for today's view
+                            const reserved = bookings.find(b => b.roomNo === room.no && b.checkIn > today); 
+                            if (reserved) status = 'reserved'; 
+                        }
+                    }
+
+                    // Map colors and text colors
+                    // status options: available, occupied, reserved, self-use
+                    const colors = { 
+                        'available': { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700' }, 
+                        'occupied': { bg: 'bg-red-50 border-red-200', text: 'text-red-700' }, 
+                        'reserved': { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700' }, 
+                        'self-use': { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700' } 
+                    }; 
+                    
+                    // Default to available if invalid status
+                    const style = colors[status] || colors['available'];
+
+                    const card = document.createElement('div'); 
+                    // Apply background and border classes
+                    card.className = `room-card card p-1 border ${style.bg} flex flex-col items-center justify-center text-center relative ${isManual ? 'manual' : ''}`; 
+                    card.style.minHeight = '50px'; 
+                    
+                    // Apply TEXT color to the room number
+                    card.innerHTML = `
+                        <span class="font-bold text-xs ${style.text}">${room.no}</span>
+                        <span class="text-[8px] ${style.text} opacity-80">${status.toUpperCase()}</span>
+                    `; 
+                    
+                    card.onclick = () => openRoomStatusModal(room.no);
+                    grid.appendChild(card); 
+                }); 
+            }); 
+        }
+
+        function filterRooms(filter) { document.querySelectorAll('.room-filter-btn').forEach(btn => { btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); if (btn.dataset.filter === filter) { btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); } }); renderRooms(filter); }
+
+        // ==================== ROOM STATUS MODAL ====================
+        function openRoomStatusModal(roomNo) { document.getElementById('selectedRoomNo').value = roomNo; document.getElementById('modalRoomNo').textContent = roomNo; document.getElementById('roomStatusModal').classList.remove('hidden'); document.getElementById('roomStatusModal').classList.add('flex'); }
+        function closeRoomStatusModal() { document.getElementById('roomStatusModal').classList.add('hidden'); document.getElementById('roomStatusModal').classList.remove('flex'); }
+        
+        // Updated to handle 'self-use'
+        function setManualStatus(status) { 
+            const roomNo = document.getElementById('selectedRoomNo').value; 
+            manualRoomStatus[roomNo] = status; 
+            localStorage.setItem('manualRoomStatus', JSON.stringify(manualRoomStatus)); 
+            closeRoomStatusModal(); 
+            renderRooms(); 
+            showToast('success', 'Sukses', `Kamar ${roomNo} diubah manual ke ${status}`); 
+        }
+        
+        function resetManualStatus() { const roomNo = document.getElementById('selectedRoomNo').value; delete manualRoomStatus[roomNo]; localStorage.setItem('manualRoomStatus', JSON.stringify(manualRoomStatus)); closeRoomStatusModal(); renderRooms(); showToast('success', 'Reset', `Status kamar ${roomNo} kembali otomatis`); }
+
+        // ==================== FORM HANDLING ====================
+        function handleFormSubmit(e) {
+            if (e) e.preventDefault();
+            const guestName = document.getElementById('guestName').value.trim(); const roomNo = document.getElementById('roomNo').value; const checkIn = document.getElementById('checkIn').value; const checkOut = document.getElementById('checkOut').value; const price = document.getElementById('price').value; const paymentStatus = document.getElementById('paymentStatus').value; const paymentMethod = document.getElementById('paymentMethod').value; const manualNoBooking = document.getElementById('noBooking').value.trim();
+            if (!guestName || !roomNo || !checkIn || !checkOut || !price || !paymentStatus || !paymentMethod) { showToast('error', 'Validasi Gagal', 'Harap isi semua field wajib (*)'); return false; }
+            const editIdx = parseInt(document.getElementById('editIndex').value); const nights = parseInt(document.getElementById('night').value) || 0; const priceVal = parseFloat(price) || 0;
+            let total = priceVal * nights; if (paymentStatus === 'Compliment') total = 0;
+            const finalNoBooking = manualNoBooking || generateBookingNo();
+            const booking = { noBooking: finalNoBooking, bookingDate: document.getElementById('bookingDate').value, guestName: guestName, roomNo: roomNo, roomType: document.getElementById('roomType').value, checkIn: checkIn, checkOut: checkOut, night: nights, phone: document.getElementById('phone').value, price: priceVal, mealPlan: document.getElementById('mealPlan').value, qty: parseInt(document.getElementById('qty').value) || 1, paymentStatus: paymentStatus, paymentMethod: paymentMethod, reservationBy: document.getElementById('reservationBy').value, notes: '', paymentNotes: '', total: total };
+            if (editIdx >= 0) { bookings[editIdx] = booking; showToast('success', 'Sukses', 'Booking berhasil diperbarui'); } else { bookings.push(booking); showToast('success', 'Sukses', 'Booking baru berhasil disimpan'); }
+            saveBookings(); renderAll(); closeBookingModal(); return false;
+        }
+        function editBooking(index) { const b = bookings[index]; openBookingModal(); document.getElementById('editIndex').value = index; document.getElementById('noBooking').value = b.noBooking; document.getElementById('bookingDate').value = b.bookingDate; document.getElementById('guestName').value = b.guestName; document.getElementById('roomNo').value = b.roomNo; document.getElementById('roomType').value = b.roomType; document.getElementById('checkIn').value = b.checkIn; document.getElementById('checkOut').value = b.checkOut; document.getElementById('night').value = b.night; document.getElementById('phone').value = b.phone; document.getElementById('price').value = b.price; document.getElementById('mealPlan').value = b.mealPlan; document.getElementById('qty').value = b.qty; document.getElementById('paymentStatus').value = b.paymentStatus; document.getElementById('paymentMethod').value = b.paymentMethod; document.getElementById('reservationBy').value = b.reservationBy; document.getElementById('formTitle').textContent = "Edit Booking"; }
+        function resetForm() { document.getElementById('bookingForm').reset(); document.getElementById('editIndex').value = -1; document.getElementById('night').value = 0; document.getElementById('roomType').value = ''; document.getElementById('price').value = ''; document.getElementById('formTitle').textContent = "Tambah Booking"; document.getElementById('noBooking').value = ''; }
+        function calculateNights() { const i = document.getElementById('checkIn').value; const o = document.getElementById('checkOut').value; if(i && o) { const diff = (new Date(o) - new Date(i)) / (1000*60*60*24); document.getElementById('night').value = diff > 0 ? diff : 0; } }
+
+        // ==================== DELETE ====================
+        function openDeleteModal(index) { deleteIndex = index; document.getElementById('deleteModal').classList.remove('hidden'); document.getElementById('deleteModal').classList.add('flex'); }
+        function closeDeleteModal() { deleteIndex = -1; document.getElementById('deleteModal').classList.add('hidden'); }
+        function confirmDelete() { if (deleteIndex >= 0) { bookings.splice(deleteIndex, 1); saveBookings(); renderAll(); showToast('success', 'Sukses', 'Data berhasil dihapus'); } closeDeleteModal(); }
+
+        // ==================== UTILITIES ====================
+        function populateRoomSelect() { const s = document.getElementById('roomNo'); s.innerHTML = '<option value="">Pilih Kamar</option>'; ROOMS.forEach(r => s.innerHTML += `<option value="${r.no}">${r.no} (${r.type})</option>`); }
+        function generateBookingNo() { const d = new Date(); return `BK${d.getFullYear().toString().slice(-2)}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}${Math.floor(Math.random()*100).toString().padStart(2,'0')}`; }
+        function saveBookings() { localStorage.setItem('hotelBookings', JSON.stringify(bookings)); }
+        function formatCurrency(amount) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount); }
+        function formatCurrencyShort(amount) { return amount >= 1000000 ? 'Rp ' + (amount/1000000).toFixed(1)+'jt' : 'Rp '+ (amount/1000).toFixed(0)+'rb'; }
+        function formatDateInput(date) { return date.toISOString().split('T')[0]; }
+        function formatDateMonth(date) { return date.toISOString().slice(0, 7); }
+        function formatDateShort(dateStr) { return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }); }
+        function showToast(type, title, message) { const toast = document.getElementById('toast'); document.getElementById('toastTitle').textContent = title; document.getElementById('toastMessage').textContent = message || ''; document.getElementById('toastIcon').className = 'w-8 h-8 rounded-full flex items-center justify-center ' + (type === 'success' ? 'bg-emerald-100' : 'bg-red-100'); document.getElementById('toastIcon').innerHTML = type === 'success' ? '<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' : '<svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'; toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3000); }
+    </script>
+</body>
+</html>
